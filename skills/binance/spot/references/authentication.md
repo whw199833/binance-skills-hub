@@ -59,14 +59,21 @@ echo -n "symbol=BTCUSDT&side=BUY&type=MARKET&quantity=0.001&timestamp=1234567890
 Add signature parameter to the query string:
 `symbol=BTCUSDT&side=BUY&type=MARKET&quantity=0.001&timestamp=1234567890123&signature=abc123...`
 
+### Step 4: Add Product User Agent Header
+
+Include `User-Agent` header with the following string: `binance-spot/1.0.1 (Skill)`
+
 #### Complete Example
 
 Request:
 ```bash
 curl -X POST "https://api.binance.com/api/v3/order" \
   -H "X-MBX-APIKEY: your_api_key" \
+  -H "User-Agent: binance-spot/1.0.1 (Skill)" \
   -d "symbol=BTCUSDT&side=BUY&type=MARKET&quantity=0.001&timestamp=1234567890123&signature=..."
+```
 
+```bash
 #!/bin/bash
 API_KEY="your_api_key"
 SECRET_KEY="your_secret_key"
@@ -83,7 +90,8 @@ SIGNATURE=$(echo -n "$QUERY" | openssl dgst -sha256 -hmac "$SECRET_KEY" | cut -d
 
 # Make request
 curl -X POST "${BASE_URL}/api/v3/order?${QUERY}&signature=${SIGNATURE}" \
-  -H "X-MBX-APIKEY: ${API_KEY}"
+  -H "X-MBX-APIKEY: ${API_KEY}"\
+  -H "User-Agent: binance-spot/1.0.1 (Skill)"
 ```
 
 If you get -1021 Timestamp outside recvWindow:

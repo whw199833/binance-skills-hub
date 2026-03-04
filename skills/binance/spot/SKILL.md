@@ -2,7 +2,7 @@
 name: spot
 description: Binance Spot request using the Binance API. Authentication requires API key and secret key. Supports testnet and mainnet.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   author: Binance
 license: MIT
 ---
@@ -223,6 +223,7 @@ Required credentials:
 Base URLs:
 * Mainnet: https://api.binance.com
 * Testnet: https://testnet.binance.vision
+* Demo: https://demo-api.binance.com
 
 ## Security
 
@@ -310,7 +311,7 @@ When performing transactions in mainnet, always confirm with the user before pro
 When user provides new credentials:
 
 * Ask for account name
-* Ask: Mainnet or Testnet?
+* Ask: Mainnet, Testnet or Demo
 * Store in `TOOLS.md` with masked display confirmation 
 
 ## Signing Requests
@@ -321,5 +322,9 @@ All trading endpoints require HMAC SHA256 signature:
 2. Sign query string with secretKey using HMAC SHA256, RSA, or Ed25519 (depending on account config)
 3. Append signature to query string
 4. Include `X-MBX-APIKEY` header
+
+## User Agent Header
+
+Include `User-Agent` header with the following string: `binance-spot/1.0.1 (Skill)`
 
 See [`references/authentication.md`](./references/authentication.md) for implementation details.
