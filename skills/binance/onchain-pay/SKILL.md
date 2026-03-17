@@ -1,16 +1,18 @@
 ---
 name: onchain-pay-open-api
 description: |
-  Binance Onchain-Pay (Connect) fiat-to-crypto on-ramp Open API skill. Enables partners to integrate crypto buying services:
-  - **payment-method-list**: Get available payment methods (Card, P2P, Google Pay, Apple Pay, etc.) with limits for a fiat/crypto pair
-  - **trading-pairs**: List all supported fiat currencies and cryptocurrencies
-  - **estimated-quote**: Get real-time price quote including exchange rate, fees, and estimated crypto amount
-  - **pre-order**: Create a buy order and get redirect URL to Binance payment flow
-  - **order**: Query order status and details (processing, completed, failed, etc.)
-  - **crypto-network**: Get supported blockchain networks with withdraw fees and limits
-  - **p2p/trading-pairs**: List P2P-specific trading pairs
+  Binance Onchain Pay enables users to buy cryptocurrency with fiat (e.g., EUR, USD) or send existing crypto from their Binance account directly to any external on-chain wallet address in a single flow—no manual withdrawal needed.
+  
+  Enables partners to integrate crypto buying services:
+  - payment-method-list: Get available payment methods (Card, P2P, Google Pay, Apple Pay, etc.) with limits for a fiat/crypto pair
+  - trading-pairs: List all supported fiat currencies and cryptocurrencies
+  - estimated-quote: Get real-time price quote including exchange rate, fees, and estimated crypto amount
+  - pre-order: Create a buy order and get redirect URL to Binance payment flow
+  - order: Query order status and details (processing, completed, failed, etc.)
+  - crypto-network: Get supported blockchain networks with withdraw fees and limits
+  - p2p/trading-pairs: List P2P-specific trading pairs
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   author: onchain-pay-team
 license: MIT
 ---
@@ -18,6 +20,61 @@ license: MIT
 # Binance Onchain-Pay Open API Skill
 
 Call Binance Onchain-Pay Open API endpoints with automatic RSA SHA256 request signing.
+
+## Use Cases & Scenarios
+
+This skill is designed for the following scenarios:
+
+### 1. 💳 Fiat-to-Crypto Purchase & Send
+**When to use**: User wants to buy crypto with fiat currency and send directly to an external on-chain wallet address
+- Buy USDT with USD/EUR/TWD using credit card → Send to MetaMask address on BSC
+- Purchase BTC with Google Pay → Transfer to hardware wallet
+- Buy USDC with P2P → Send to DeFi protocol contract address
+
+**Key APIs**: `trading-pairs` → `payment-method-list` → `estimated-quote` → `pre-order`
+
+### 2. 🔄 Direct Crypto Transfer (Send Primary)
+**When to use**: User has crypto in Binance account and wants to send to external address
+- Send existing USDT from Binance Spot to friend's wallet address
+- Transfer ETH to Uniswap contract for trading
+- Move crypto from Binance to self-custodial wallet (Trust Wallet, Ledger, etc.)
+
+**Key APIs**: `pre-order` with `SEND_PRIMARY` customization
+
+### 3. 🔗 Cross-Chain Bridge Operations
+**When to use**: User needs to buy crypto on one chain and transfer to another network
+- Buy USDC on Ethereum → Bridge to Polygon for lower fees
+- Purchase tokens on BSC → Transfer to Base network
+- Fiat to crypto on Solana → Send to Arbitrum for DeFi
+
+**Key APIs**: `crypto-network` → `pre-order` with network selection
+
+### 4. 🏪 Merchant Payment Integration
+**When to use**: Integrate crypto payment gateway for e-commerce or services
+- Accept fiat payments and auto-convert to crypto
+- Enable "Pay with Crypto" checkout flow
+- Process subscription payments with crypto
+
+**Key APIs**: `pre-order` with `externalOrderId` tracking
+
+### 5. 🤖 Smart Contract Interaction (Onchain-Pay Easy)
+**When to use**: Buy crypto and execute smart contract in one transaction
+- Buy USDT and deposit to lending protocol
+- Purchase tokens and stake in DeFi pool
+- Fiat on-ramp directly to GameFi or NFT marketplace
+
+**Key APIs**: `pre-order` with `ON_CHAIN_PROXY_MODE` customization
+
+### 6. 📊 Query & Monitoring
+**When to use**: Check order status, available networks, or payment methods
+- Monitor order processing status (pending, completed, failed)
+- List supported fiat currencies and cryptocurrencies
+- Check available payment methods for specific country/amount
+- Verify network fees and limits
+
+**Key APIs**: `order`, `crypto-network`, `trading-pairs`, `payment-method-list`
+
+---
 
 ## Quick Reference
 
@@ -50,6 +107,11 @@ Use the account marked `(default)` in `.local.md`.
 ### Step 2: Build the JSON body
 
 Build a compact JSON body from user-specified parameters. Remove any parameters the user did not provide.
+
+**IMPORTANT: Address and Network Validation**
+- `address` (destination wallet address) and `network` (blockchain network) are REQUIRED for all pre-order requests
+- If the user has configured `Default Address` and `Default Network` in `.local.md`, use them automatically
+- If not configured or not provided by user, ASK the user to provide both values before proceeding
 
 ### Step 3: Sign and call using the bundled script
 
@@ -118,9 +180,11 @@ Get all available payment methods without specifying fiat/crypto parameters. Sim
 | requestedAmount | number | Yes | Amount value |
 | payMethodCode | string | Yes | Payment method (e.g., `BUY_CARD`, `BUY_GOOGLE_PAY`, `BUY_P2P`, `BUY_WALLET`) |
 | amountType | number | Yes | `1` = fiat amount, `2` = crypto amount |
-| network | string | No | Blockchain network |
+| network | string | **Yes*** | Blockchain network (can use default from `.local.md`) |
 | contractAddress | string | No | Token contract address |
-| address | string | No | Destination wallet address |
+| address | string | **Yes*** | Destination wallet address for receiving crypto |
+
+\* Recommended: These parameters should be provided. If not specified by user, check `.local.md` for defaults. If no defaults exist, ask user before proceeding.
 
 ### Pre-order (`buy/pre-order`)
 
@@ -333,7 +397,7 @@ Then offer to save them to `.local.md` for future use.
 - API Key: your-api-key
 - PEM Path: /absolute/path/to/your/private.pem
 - Default Network: your-preferred-network
-- Default Address: your-address
+- Default Address: your-wallet-address
 - Description: Production account
 ```
 
@@ -355,3 +419,48 @@ Include `User-Agent` header with the following string: `onchain-pay-open-api/0.1
 4. Execute the request using the bundled `scripts/sign_and_call.sh`
 5. Display the response in a readable format
 6. If the request fails, show the error and suggest fixes
+
+---
+
+## Important Notes for Pre-order API
+
+### Timestamp Generation (Cross-platform)
+
+When generating timestamps for the `ts` parameter and `externalOrderId`, use the following approach for cross-platform compatibility:
+
+```bash
+# Generate millisecond timestamp (works on macOS, Linux, BSD)
+TIMESTAMP=$(($(date +%s) * 1000))
+
+# Generate unique order ID
+ORDER_ID="order$(date +%s)"
+```
+
+**DO NOT USE** `date +%s%3N` or `date +%s000` as these are not portable:
+- `date +%s%3N` doesn't work on macOS (outputs literal 'N')
+- `date +%s000` just appends '000' without actual millisecond precision
+
+### Order ID Format
+
+The `externalOrderId` must be a valid string without special characters. Recommended formats:
+- `order1773744500` (simple numeric suffix)
+- `order_1773744500` (with underscore separator)
+- `txn-abc123` (custom prefix with alphanumeric)
+
+**Avoid**: `order_${TIMESTAMP}` where TIMESTAMP contains shell variable syntax errors
+
+### Example Pre-order Request
+
+```bash
+# Correct way to create a pre-order
+TIMESTAMP=$(($(date +%s) * 1000))
+ORDER_ID="order$(date +%s)"
+
+bash /path/to/scripts/sign_and_call.sh \
+  "https://api.commonservice.io" \
+  "papi/v1/ramp/connect/gray/buy/pre-order" \
+  "connect-gray" \
+  "your-api-key" \
+  "/path/to/private.pem" \
+  "{\"externalOrderId\":\"$ORDER_ID\",\"merchantCode\":\"connect-gray\",\"merchantName\":\"YourMerchant\",\"ts\":$TIMESTAMP,\"fiatCurrency\":\"USD\",\"requestedAmount\":100,\"cryptoCurrency\":\"BNB\",\"amountType\":1,\"address\":\"0x...\",\"network\":\"BSC\",\"payMethodCode\":\"BUY_CARD\"}"
+```

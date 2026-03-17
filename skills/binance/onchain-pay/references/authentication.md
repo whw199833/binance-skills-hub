@@ -46,7 +46,8 @@ All requests are **POST** with these headers:
 ### Complete Example
 
 ```bash
-timestamp=$(date +%s000)
+# Generate timestamp in milliseconds (cross-platform compatible)
+timestamp=$(($(date +%s) * 1000))
 api_params='{"fiatCurrency":"USD","cryptoCurrency":"BTC","totalAmount":100,"amountType":1}'
 payload="${api_params}${timestamp}"
 
@@ -61,6 +62,27 @@ curl --location --request POST "https://api.commonservice.io/papi/v1/ramp/connec
   --header "X-Tesla-Timestamp: $timestamp" \
   --header "Content-Type: application/json" \
   --data-raw "$api_params"
+```
+
+### Important: Cross-platform Timestamp Generation
+
+**Correct (works on macOS, Linux, BSD):**
+```bash
+timestamp=$(($(date +%s) * 1000))
+```
+
+**Incorrect (do not use):**
+```bash
+# ❌ Doesn't work on macOS - outputs literal 'N'
+timestamp=$(date +%s%3N)
+
+# ❌ Just appends '000', not true milliseconds
+timestamp=$(date +%s000)
+```
+
+On macOS, `date` doesn't support `%N` (nanoseconds), which causes `date +%s%3N` to output something like `1773744478N`. This breaks JSON parsing with error:
+```
+Unexpected character ('N' (code 78)): was expecting comma to separate Object entries
 ```
 
 ## Security Notes

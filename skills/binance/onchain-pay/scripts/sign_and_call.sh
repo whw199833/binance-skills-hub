@@ -19,8 +19,9 @@ API_KEY="$4"
 PEM_PATH="$5"
 JSON_BODY="${6:-}"
 
-# Generate timestamp (milliseconds)
-timestamp=$(date +%s000)
+# Generate timestamp (milliseconds) - cross-platform compatible
+# Using arithmetic expansion works on macOS, Linux, and BSD
+timestamp=$(($(date +%s) * 1000))
 
 # Build signing payload: JSON body + timestamp
 payload="${JSON_BODY}${timestamp}"
